@@ -1,25 +1,27 @@
-ARG BASE=golang:1.15-alpine3.12
+ARG BASE=golang:1.16-alpine3.12
 FROM ${BASE} AS builder
 
-ARG MAKE='make cmd/device-template'
-
-RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.ustc.edu.cn/g' /etc/apk/repositories
-
-RUN apk add --update --no-cache make git
+RUN sed -e 's/dl-cdn[.]alpinelinux.org/nl.alpinelinux.org/g' -i~ /etc/apk/repositories
+RUN apk add --update --no-cache make git openssh gcc libc-dev zeromq-dev libsodium-dev
 
 # set the working directory
 WORKDIR /device-template-go
 
 COPY . .
-RUN --mount=type=cache,target=/go,id=coap_driver_cache,sharing=shared go mod download
-RUN --mount=type=cache,target=/root/.cache,id=coap_driver_build_cache,sharing=shared ${MAKE}
+
+RUN go mod tidy
+RUN go mod download
+
+RUN make build
 
 FROM alpine:3.12
 
-EXPOSE 61618
+RUN sed -e 's/dl-cdn[.]alpinelinux.org/nl.alpinelinux.org/g' -i~ /etc/apk/repositories
+RUN apk add --update --no-cache zeromq dumb-init
 
-COPY --from=builder /device-template-go/cmd/device-template /bin/
-COPY --from=builder /device-template-go/cmd/res /etc/driver/res/
+COPY --from=builder /device-template-go/cmd /
 
-ENTRYPOINT ["/bin/device-template"]
-CMD ["--confdir=/etc/driver/res"]
+EXPOSE 59982
+
+ENTRYPOINT ["/device-template"]
+CMD ["--cp=consul://edgex-core-consul:8500", "--registry", "--confdir=/res"]

@@ -71,7 +71,7 @@ func (d *Driver) Initialize(lc logger.LoggingClient, asyncCh chan<- *sdkModel.As
 	})
 
 	d.clientMap = ClientMap{clients: ca}
-
+	d.serviceConfig = &ServiceConfig{}
 	ds := service.RunningService()
 	if err := ds.LoadCustomConfig(d.serviceConfig, CustomConfigSectionName); err != nil {
 		return fmt.Errorf("unable to load '%s' custom configuration: %s", CustomConfigSectionName, err.Error())
